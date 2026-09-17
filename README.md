@@ -51,3 +51,22 @@ Clone this repository and run:
 
 ```bash
 ./scripts/install.sh
+```
+
+### Windows
+
+Clone this repository and run the setup script from PowerShell:
+
+```powershell
+.\scripts\install.ps1
+```
+
+The installer runs as the current user and does not require administrator
+elevation. It installs the OpenCode configuration under:
+
+```text
+%USERPROFILE%\.config\opencode
+```
+
+If CodeGraph is not already available, the installer attempts to install it
+through npm using the current user's environment.
