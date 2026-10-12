@@ -65,15 +65,45 @@ for marker in "core/instructions/AGENTS.md" "core/skills" "adapters/opencode/con
   fi
 done
 
-OPENCODE_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+fail() { echo "Error: $1" >&2; exit 1; }
+
+LIVE_DEFAULT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+if [ "${OPENCODE_SETUP_DEST+set}" = "set" ]; then
+  # Test-only destination override. The production default is unchanged
+  # when OPENCODE_SETUP_DEST is unset. Every managed write and backup below
+  # derives from OPENCODE_CONFIG_DIR, so validation here covers all of them.
+  [ -n "$OPENCODE_SETUP_DEST" ] || fail "OPENCODE_SETUP_DEST must not be empty."
+  case "$OPENCODE_SETUP_DEST" in
+    /*) ;;
+    *) fail "OPENCODE_SETUP_DEST must be an absolute path: $OPENCODE_SETUP_DEST" ;;
+  esac
+  [ "$OPENCODE_SETUP_DEST" != "/" ] || fail "OPENCODE_SETUP_DEST must not be the filesystem root."
+  mkdir -p "$OPENCODE_SETUP_DEST" || fail "Cannot create sandbox destination: $OPENCODE_SETUP_DEST."
+  # Canonicalize (resolving symlinks) before any containment check.
+  SANDBOX_DIR="$(cd "$OPENCODE_SETUP_DEST" && pwd -P)"
+  if [ -d "$LIVE_DEFAULT_DIR" ]; then
+    LIVE_CANON="$(cd "$LIVE_DEFAULT_DIR" && pwd -P)"
+  else
+    LIVE_CANON="$LIVE_DEFAULT_DIR"
+  fi
+  [ "$SANDBOX_DIR" != "$LIVE_CANON" ] || fail "OPENCODE_SETUP_DEST resolves to the live configuration; refusing unsafe destination."
+  case "$LIVE_CANON/" in
+    "$SANDBOX_DIR/"*) fail "OPENCODE_SETUP_DEST is an ancestor of the live configuration; refusing unsafe destination." ;;
+  esac
+  case "$SANDBOX_DIR/" in
+    "$LIVE_CANON/"*) fail "OPENCODE_SETUP_DEST is inside the live configuration; refusing unsafe destination." ;;
+  esac
+  OPENCODE_CONFIG_DIR="$SANDBOX_DIR"
+  echo "SANDBOX MODE: all writes redirected to $OPENCODE_CONFIG_DIR"
+else
+  OPENCODE_CONFIG_DIR="$LIVE_DEFAULT_DIR"
+fi
 OPENCODE_SKILLS_DIR="$OPENCODE_CONFIG_DIR/skills"
 SOURCE_SKILLS_DIR="$REPO_DIR/core/skills"
 SOURCE_AGENTS="$REPO_DIR/core/instructions/AGENTS.md"
 SOURCE_TEMPLATE="$REPO_DIR/adapters/opencode/config/opencode.jsonc"
 TARGET_AGENTS="$OPENCODE_CONFIG_DIR/AGENTS.md"
 TARGET_CONFIG="$OPENCODE_CONFIG_DIR/opencode.jsonc"
-
-fail() { echo "Error: $1" >&2; exit 1; }
 
 # --- Discovery (no personal absolute paths; $HOME is portable) ---
 
@@ -145,7 +175,9 @@ grep -q '@@GITNEXUS_NODE@@' "$SOURCE_TEMPLATE" || fail "Template missing @@GITNE
 grep -q '@@GITNEXUS_CLI@@' "$SOURCE_TEMPLATE" || fail "Template missing @@GITNEXUS_CLI@@ placeholder."
 
 RENDERED_TMP="$(mktemp "${TMPDIR:-/tmp}/opencode.jsonc.XXXXXX")"
-trap 'rm -f "$RENDERED_TMP"' EXIT
+# B1: staging files are unique (mktemp) and removed on every exit path,
+# including validation failures and signals (EXIT trap).
+trap 'rm -f "$RENDERED_TMP"; if [ -n "${CONFIG_TMP:-}" ]; then rm -f "$CONFIG_TMP"; fi' EXIT
 
 # Escape sed replacement metacharacters in resolved paths.
 sed_escape() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
@@ -208,11 +240,25 @@ fi
 # --- --apply: ordered, per-file backup + replace (NOT atomic across files) ---
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+# B2: collision-safe backup names. An existing backup is never overwritten;
+# a numeric suffix is appended until the name is free.
+unique_backup_path() {
+  local base="$1"
+  local cand="$base.bak-$TIMESTAMP"
+  local i=1
+  while [ -e "$cand" ]; do
+    cand="$base.bak-$TIMESTAMP-$i"
+    i=$((i + 1))
+  done
+  printf '%s' "$cand"
+}
 backup_file() {
   local file="$1"
   if [ -e "$file" ]; then
-    cp "$file" "$file.bak-$TIMESTAMP" || fail "Backup failed for $file; aborting before further writes."
-    echo "Backed up: $file -> $file.bak-$TIMESTAMP"
+    local dest
+    dest="$(unique_backup_path "$file")"
+    cp "$file" "$dest" || fail "Backup failed for $file; aborting before further writes."
+    echo "Backed up: $file -> $dest"
   fi
 }
 
@@ -236,9 +282,9 @@ for source_skill in "$SOURCE_SKILLS_DIR"/*; do
     continue
   fi
   if [ -d "$target_skill" ]; then
-    rm -rf "$target_skill.bak-$TIMESTAMP"
-    cp -R "$target_skill" "$target_skill.bak-$TIMESTAMP" || fail "Backup failed for skill $skill_name; aborting."
-    echo "Backed up skill: $skill_name"
+    skill_backup="$(unique_backup_path "$target_skill")"
+    cp -R "$target_skill" "$skill_backup" || fail "Backup failed for skill $skill_name; aborting."
+    echo "Backed up skill: $skill_name -> $skill_backup"
     rm -rf "$target_skill"
   fi
   cp -R "$source_skill" "$target_skill" || fail "Failed installing skill $skill_name."

@@ -96,7 +96,41 @@ directory (`~/.config/opencode` on macOS/Linux,
 `%USERPROFILE%\.config\opencode` on Windows).
 
 `--apply` writes live configuration with timestamped backups
-(`*.bak-YYYYmmdd-HHMMSS`), one file at a time (ordered replacement, not
-atomic across files). A working live configuration is never overwritten
-without explicit deployment approval. Validate with `--check` after any
-deployment.
+(`*.bak-YYYYmmdd-HHMMSS`, collision-suffixed on re-runs), one file at a
+time (ordered replacement, not atomic across files). A working live
+configuration is never overwritten without explicit deployment approval.
+Validate with `--check` after any deployment.
+
+## Testing (isolated)
+
+`adapters/opencode/scripts/test-isolated.sh` runs the macOS installer
+matrix against a disposable sandbox. It exports `OPENCODE_SETUP_DEST` for
+every installer call and refuses to run otherwise.
+
+Destination override rules (enforced by both installers before any write):
+
+- Unset means production: the default destination is unchanged.
+- Empty, relative, filesystem-root, live-equivalent, symlink-aliased, and
+  live-ancestor/live-contained destinations are refused with a clear error.
+- Paths are canonicalized (symlinks resolved) before containment checks.
+- An active override prints a `SANDBOX MODE` banner with the effective root.
+
+Test matrix: interlock refusals (T0), default dry-run (T-dry), empty
+destination (T1), up-to-date convergence (T2), outdated replacement with
+byte-verified backups (T3), unrelated-file and operator-backup preservation
+(T4), repeated deployments with distinct backup names (T5), pre-write
+validation failures (T6), and deterministic partial-state failure plus
+recovery (T7). Every test snapshots the live tree before and after and
+fails on any delta, and every plan output is checked so all target paths
+stay inside the sandbox. Fixtures are synthesized; no live configuration
+or secret is ever copied into them.
+
+```bash
+./adapters/opencode/scripts/test-isolated.sh
+```
+
+Platform coverage: the full matrix is verified on macOS for `install.sh`.
+`install.ps1` mirrors the contract by construction and review only — it has
+never been runtime-tested (see the Windows note above). Windows layout
+discovery (B3), UTF-8-no-BOM bytes, and activation semantics remain
+unverified until a Windows `--check` → `--dry-run` output review.
