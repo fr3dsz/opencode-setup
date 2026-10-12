@@ -27,7 +27,7 @@ Inspect:
 - tests
 - architecture where applicable
 
-Use CodeGraph to understand relationships when useful.
+Use the GitNexus MCP tools (see global instructions) to understand relationships when the task justifies it.
 
 ## Documentation Layers
 

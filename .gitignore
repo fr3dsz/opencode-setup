@@ -26,6 +26,14 @@ node_modules/
 *.tmp
 *.temp
 *.bak
+*.bak-*
+*.backup
+
+# Installer backups (timestamped) and machine-local generated config
+*.local.jsonc
+
+# Graph index artifacts (never commit indexes or caches)
+.gitnexus/
 
 # OpenCode/local generated data
 .codegraph/

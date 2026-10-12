@@ -65,7 +65,7 @@ Start with:
 1. Project `AGENTS.md`, if present.
 2. Relevant architecture and system documentation.
 3. Relevant configuration and project structure.
-4. CodeGraph, when `.codegraph/` exists and implementation relationships matter.
+4. GitNexus MCP tools, when an index exists for the repository and implementation relationships matter.
 5. Targeted source inspection where documentation or graph information is insufficient.
 
 Determine:
@@ -566,21 +566,20 @@ Do not create documentation solely because an architecture template lists it.
 
 For small projects, lightweight documentation may be sufficient.
 
-## CodeGraph
+## Repository graph (GitNexus)
 
-When `.codegraph/` exists, use CodeGraph to support architectural reasoning about the implementation.
+When an index exists for the repository, use the GitNexus MCP tools to
+support architectural reasoning about the implementation.
 
 Useful operations may include:
 
-- `explore` to understand an area
-- `context` to gather implementation context
-- `node` to inspect a symbol or file and relationships
-- `impact` before significant changes
-- `callers` and `callees` when dependency direction matters
-- `affected` when identifying related tests
-- `sync` when the graph may be stale
+- `query` to understand an area
+- `context` (`name` + `file_path`) to gather implementation context
+- `impact` with `direction: "upstream"` before significant changes
+- `trace` (`from`/`to`) when dependency direction matters
+- targeted source inspection where documentation or graph information is insufficient
 
-CodeGraph describes implementation relationships.
+The graph describes implementation relationships.
 
 It does not determine architectural intent, requirements, or methodology.
 

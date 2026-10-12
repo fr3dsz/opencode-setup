@@ -42,7 +42,7 @@ Read relevant project documentation first when available.
 
 If the project has `AGENTS.md`, respect its project-specific instructions.
 
-If `.codegraph/` exists, use CodeGraph when relationships, callers, dependencies, or impact need to be understood.
+If a GitNexus index exists for the repository, use the GitNexus MCP tools when relationships, callers, dependencies, or impact need to be understood.
 
 For a diff or targeted change, begin with the changed area rather than rediscovering the entire repository.
 
@@ -104,7 +104,7 @@ Consider:
 - background jobs
 - platform-specific behavior
 
-When `.codegraph/` exists and dependency impact matters, use CodeGraph to inspect callers, impact, or affected tests.
+When a GitNexus index exists and dependency impact matters, use the GitNexus MCP tools to inspect callers, impact, or affected tests.
 
 Distinguish a plausible regression path from speculation.
 
@@ -278,7 +278,7 @@ Identify dead code when evidence supports that conclusion.
 
 Before deleting uncertain code, verify its usage through the available project tools.
 
-If `.codegraph/` exists, use it when appropriate to inspect references.
+If a GitNexus index exists, use it when appropriate to inspect references.
 
 Do not delete code merely because its purpose is not immediately obvious.
 

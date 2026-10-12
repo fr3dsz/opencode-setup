@@ -46,7 +46,7 @@ Before substantial backend work, determine the relevant:
 
 Read relevant project documentation first.
 
-If `.codegraph/` exists, use CodeGraph to understand relevant routes, services, domain logic, persistence, callers, dependencies, and integration paths before broad manual exploration.
+If a GitNexus index exists for the repository, use the GitNexus MCP tools to understand relevant routes, services, domain logic, persistence, callers, dependencies, and integration paths before broad manual exploration.
 
 Do not impose a preferred backend architecture on a project that already has a coherent one.
 

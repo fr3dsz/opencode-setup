@@ -25,8 +25,9 @@ Before significant changes:
 2. Read documentation relevant to the task.
 3. Inspect the project's structure, configuration, dependencies, and existing
    conventions only as needed.
-4. If `.codegraph/` exists, use CodeGraph to understand the relevant code and
-   relationships before broad manual searching.
+4. If a GitNexus index exists for the repository, use the GitNexus MCP tools
+   for caller, dependency, or impact questions that justify the cost; use
+   targeted source inspection for trivial lookups.
 5. Identify the smallest part of the system that needs to change.
 
 Do not rediscover the entire project from source code when reliable project
@@ -130,30 +131,32 @@ unless that verification actually occurred.
 Prefer evidence from the current project over assumptions based on common
 patterns.
 
-## CodeGraph
+## Repository graph (GitNexus)
 
-When a repository contains `.codegraph/`, use CodeGraph as the primary code
-navigation and relationship tool.
+GitNexus MCP is the repository-intelligence provider. Use it conditionally,
+not by default.
 
-Use CodeGraph before broad grep/find/manual exploration when locating or
-understanding code.
+Use it when the task involves callers, shared contracts, cross-module
+dependencies, execution paths, or blast-radius risk. Do not use it for
+trivial lookups, single-file edits, or answers already visible in the source.
 
-Choose the appropriate operation for the task:
+- `query` (`search_query`) for concept search.
+- `context` (`name` + `file_path`) for a symbol's callers and callees.
+- `impact` for blast radius: always pass `direction: "upstream"` for caller
+  impact and disambiguate with `file_path`. Bare calls without `direction`
+  under-report.
+- `trace` (`from`/`to`) for the call path between two symbols.
+- Check freshness first. If the index is stale or missing, fall back to
+  targeted source inspection.
 
-- `explore` for understanding an area or workflow.
-- `context` for gathering implementation context for a task.
-- `node` for inspecting a specific symbol or file and its relationships.
-- `impact` before changing an important symbol when dependency impact matters.
-- `affected` when identifying tests related to changed source files.
-- `sync` when the index may be behind the working tree.
+Never index a repository without explicit approval. When approved, use
+`--index-only --skip-agents-md --skip-skills` with no embeddings.
 
-Use MCP CodeGraph tools when available and the CLI otherwise.
+Verify important graph-derived conclusions against the actual source before
+acting on them.
 
-CodeGraph helps explain the implementation. It is not the source of truth for
-requirements, architecture intent, research methodology, or project rules.
-
-If `.codegraph/` does not exist, continue without CodeGraph rather than
-requiring it.
+The graph describes implementation relationships. It is not the source of
+truth for requirements, architectural intent, or methodology.
 
 ## Documentation
 

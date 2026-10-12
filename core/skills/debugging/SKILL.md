@@ -68,7 +68,7 @@ Before changing a component, understand:
 - expected outputs
 - relevant project documentation
 
-Use CodeGraph when available.
+Use the GitNexus MCP tools when an index exists and the bug spans modules.
 
 ### 5. Apply the Smallest Correct Fix
 

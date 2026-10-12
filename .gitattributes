@@ -1,0 +1,8 @@
+# Normalize LF line endings for files where byte-exactness matters:
+# shell installers (a CRLF shebang line would break execution), the
+# PowerShell installer, and the JSONC template (rendered output is compared
+# byte-for-byte against live configuration). No broad repository
+# normalization is applied.
+*.sh text eol=lf
+*.ps1 text eol=lf
+adapters/opencode/config/opencode.jsonc text eol=lf

@@ -40,7 +40,7 @@ Before substantial frontend work, determine:
 
 Read relevant project documentation first.
 
-If `.codegraph/` exists, use CodeGraph to understand relevant components, dependencies, state flows, services, and call relationships before broad manual exploration.
+If a GitNexus index exists for the repository, use the GitNexus MCP tools to understand relevant components, dependencies, state flows, services, and call relationships before broad manual exploration.
 
 Do not impose React, Next.js, React Native, Vue, Svelte, or other framework conventions on a project that uses different established patterns.
 

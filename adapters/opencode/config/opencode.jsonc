@@ -1,9 +1,31 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  // Portable OpenCode configuration template (OpenCode 1.x).
+  //
+  // This file is NEVER copied verbatim into live configuration. The
+  // adapter installer renders the @@GITNEXUS_*@@ placeholders below into
+  // absolute local paths and writes the result to the live config file.
+  // Placeholder syntax is installer-owned: OpenCode environment-variable
+  // interpolation is NOT used here. The installer must reject any rendered
+  // output that still contains an "@@" placeholder before deployment.
+  //
+  // Full-line // comments in this template are documentation only and are
+  // stripped at render time; the deployed live config is minimal JSONC.
+  //
+  // Resolution contract (implemented by the installer, not by OpenCode):
+  // - @@GITNEXUS_NODE@@ resolves to a Node executable that reports the
+  //   required Node version (see adapters/opencode/scripts/install.sh).
+  //   The default PATH node is never assumed suitable; it is accepted only
+  //   if its reported version matches exactly.
+  // - @@GITNEXUS_CLI@@ resolves to the GitNexus CLI entrypoint
+  //   (dist/cli/index.js) belonging to the same installation tree as the
+  //   resolved Node, and must report the required GitNexus version.
+  // - The rendered command preserves the proven absolute-path stdio launch:
+  //   ["<node>", "<cli>", "mcp"].
   "mcp": {
-    "codegraph": {
+    "gitnexus": {
       "type": "local",
-      "command": ["codegraph", "serve", "--mcp"],
+      "command": ["@@GITNEXUS_NODE@@", "@@GITNEXUS_CLI@@", "mcp"],
       "enabled": true,
     },
   },

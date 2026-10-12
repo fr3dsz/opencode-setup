@@ -47,7 +47,7 @@ Before substantial security-sensitive work, understand the relevant:
 
 Read relevant project documentation first.
 
-If `.codegraph/` exists, use CodeGraph to understand relevant authentication paths, authorization checks, data flows, external calls, sensitive operations, and dependencies before broad manual exploration.
+If a GitNexus index exists for the repository, use the GitNexus MCP tools to understand relevant authentication paths, authorization checks, data flows, external calls, sensitive operations, and dependencies before broad manual exploration.
 
 Do not assume a security mechanism exists merely because the framework commonly provides one.
 
