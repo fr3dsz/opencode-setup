@@ -156,9 +156,12 @@ skills exist once.
   blocked, every run undoable), then review the diff itself. Use only
   zero-retention free models; see the skill for the list.
 
-Skills, agents, and rules are symlinked into `~/.claude`, so edits in this
-repository take effect immediately. Memory, sessions, plugins, Impeccable,
-and project-local skills (such as a thesis repo's `thesis-research`) stay
+On macOS/Linux, skills, agents, and rules are symlinked into `~/.claude`, so
+edits in this repository take effect immediately. On Windows, skills are
+directory junctions (no admin rights needed) and agents/rules are copied,
+because file symlinks need elevation; re-run `--apply` after `git pull`.
+Memory, sessions, plugins, MCP servers (`~/.claude.json`), Impeccable, and
+project-local skills (such as a thesis repo's `thesis-research`) stay
 machine-local and are not managed here.
 
 ```bash
@@ -167,5 +170,51 @@ machine-local and are not managed here.
 ./adapters/claude/scripts/install.sh --apply    # back up, then link/write
 ```
 
-Replaced entries are moved to `<name>.bak-YYYYmmdd-HHMMSS`. Set
-`CLAUDE_SETUP_DEST=/abs/sandbox` to test without touching `~/.claude`.
+```powershell
+.\adapters\claude\scripts\install.ps1 --check
+.\adapters\claude\scripts\install.ps1 --dry-run
+.\adapters\claude\scripts\install.ps1 --apply
+```
+
+Replaced entries are moved to
+`~/.claude/setup-backups/YYYYmmdd-HHMMSS/<relative path>`, outside the
+directories Claude Code loads. Set `CLAUDE_SETUP_DEST` to an absolute
+sandbox path to test without touching `~/.claude`.
+
+`install.ps1` has not been runtime-tested (no PowerShell on the
+maintainer's Mac). Run `--check` and `--dry-run` first on Windows and review
+the output before `--apply`. `oc-run.sh` runs under Git Bash on Windows; its
+timeout watchdog (`pkill`/`kill`) is unverified there.
+
+## New Machine Setup
+
+Same steps on macOS and Windows; Windows commands are in PowerShell.
+
+1. Install prerequisites: Git (on Windows, Git for Windows, which Claude
+   Code needs for Git Bash), Claude Code, and optionally Node v22.23.2 +
+   GitNexus 1.6.12 and OpenCode 1.19.0.
+2. Clone to the same relative place:
+   `git clone https://github.com/fr3dsz/opencode-setup.git ~/Dev/opencode-setup`
+   (Windows: `$HOME\Dev\opencode-setup`).
+3. Claude Code: run the adapter installer `--check`, then `--dry-run`, then
+   `--apply` (see above).
+4. GitNexus MCP for Claude Code (user scope, lives in `~/.claude.json`, so
+   it is registered per machine rather than deployed):
+
+   ```bash
+   # macOS / Linux: absolute paths to the pinned Node and GitNexus CLI
+   claude mcp add gitnexus -s user -- \
+     ~/.nvm/versions/node/v22.23.2/bin/node \
+     ~/.nvm/versions/node/v22.23.2/lib/node_modules/gitnexus/dist/cli/index.js mcp
+   ```
+
+   ```powershell
+   # Windows: after `npm install -g gitnexus@1.6.12`
+   claude mcp add gitnexus -s user -- cmd /c gitnexus mcp
+   ```
+
+   Verify with `claude mcp list`.
+5. OpenCode (optional, needed for `opencode-delegate`): run the OpenCode
+   installer (see Installation), then `opencode auth login`.
+6. Optional: install Impeccable from its upstream repository into
+   `~/.claude/skills/impeccable`.

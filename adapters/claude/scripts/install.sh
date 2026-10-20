@@ -14,7 +14,9 @@
 # - --dry-run is the DEFAULT and changes nothing. --check validates and
 #   exits non-zero on drift. --apply is the only mode that writes.
 # - Every replaced file or directory is first moved to
-#   <name>.bak-YYYYmmdd-HHMMSS. Nothing is deleted.
+#   setup-backups/YYYYmmdd-HHMMSS/<relative path> under the destination.
+#   Backups stay out of skills/, agents/, and rules/ so Claude Code never
+#   loads them as duplicates. Nothing is deleted.
 # - settings.json is only seeded when missing: Claude Code edits it at
 #   runtime (/config, permission prompts), so drift is reported, never
 #   overwritten.
@@ -74,8 +76,8 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 render() { sed -e "s#@@REPO_DIR@@#$REPO_DIR#g" -e "s#@@HOME@@#$HOME#g" "$1"; }
 
 backup() {
-  local b="$1.bak-$STAMP" n=1
-  while [ -e "$b" ] || [ -L "$b" ]; do b="$1.bak-$STAMP-$n"; n=$((n + 1)); done
+  local b="$DEST/setup-backups/$STAMP/${1#"$DEST"/}"
+  mkdir -p "$(dirname "$b")"
   mv "$1" "$b"; echo "  backup  $b"
 }
 
