@@ -19,6 +19,8 @@ Node v22.23.2. OpenCode 2.0 migration is deferred to a separate phase.
   them into the live configuration.
 - `adapters/opencode/scripts/` — installation and setup scripts
   (`install.sh` for macOS/Linux, `install.ps1` for Windows).
+- `adapters/claude/` — Claude Code adapter (see below). Claude Code is the
+  lead agent; OpenCode free models are optional delegated workers.
 
 `evidence/` (Bronze/Silver/Gold refinement) and token/context budgets are
 separate concerns with reserved paths; neither lives inside the other.
@@ -134,3 +136,85 @@ Platform coverage: the full matrix is verified on macOS for `install.sh`.
 never been runtime-tested (see the Windows note above). Windows layout
 discovery (B3), UTF-8-no-BOM bytes, and activation semantics remain
 unverified until a Windows `--check` → `--dry-run` output review.
+
+## Claude Code Adapter
+
+Claude Code reads the same `core/` content as OpenCode, so instructions and
+skills exist once.
+
+- `config/CLAUDE.md` — global `~/.claude/CLAUDE.md`; @imports
+  `core/instructions/AGENTS.md` and adds Claude-specific orchestration.
+- `config/settings.json` — permission allow/deny baseline (secrets, build
+  output, destructive git). Seeded only when missing, because Claude Code
+  edits it at runtime; afterwards the installer reports drift.
+- `agents/` — `Explore` and `test-runner` subagents on Haiku, so searches
+  and test output stay out of the main context.
+- `rules/` — path-scoped rules that point backend, frontend, and ML files
+  to the right skills.
+- `skills/opencode-delegate/` — lets Claude hand small, fully specified tasks
+  to an OpenCode free model through `scripts/oc-run.sh` (commits and pushes
+  blocked, every run undoable), then review the diff itself. Use only
+  zero-retention free models; see the skill for the list.
+
+On macOS/Linux, skills, agents, and rules are symlinked into `~/.claude`, so
+edits in this repository take effect immediately. On Windows, skills are
+directory junctions (no admin rights needed) and agents/rules are copied,
+because file symlinks need elevation; re-run `--apply` after `git pull`.
+Memory, sessions, plugins, MCP servers (`~/.claude.json`), Impeccable, and
+project-local skills (such as a thesis repo's `thesis-research`) stay
+machine-local and are not managed here.
+
+```bash
+./adapters/claude/scripts/install.sh            # dry run (default)
+./adapters/claude/scripts/install.sh --check    # exit 1 on drift
+./adapters/claude/scripts/install.sh --apply    # back up, then link/write
+```
+
+```powershell
+.\adapters\claude\scripts\install.ps1 --check
+.\adapters\claude\scripts\install.ps1 --dry-run
+.\adapters\claude\scripts\install.ps1 --apply
+```
+
+Replaced entries are moved to
+`~/.claude/setup-backups/YYYYmmdd-HHMMSS/<relative path>`, outside the
+directories Claude Code loads. Set `CLAUDE_SETUP_DEST` to an absolute
+sandbox path to test without touching `~/.claude`.
+
+`install.ps1` has not been runtime-tested (no PowerShell on the
+maintainer's Mac). Run `--check` and `--dry-run` first on Windows and review
+the output before `--apply`. `oc-run.sh` runs under Git Bash on Windows; its
+timeout watchdog (`pkill`/`kill`) is unverified there.
+
+## New Machine Setup
+
+Same steps on macOS and Windows; Windows commands are in PowerShell.
+
+1. Install prerequisites: Git (on Windows, Git for Windows, which Claude
+   Code needs for Git Bash), Claude Code, and optionally Node v22.23.2 +
+   GitNexus 1.6.12 and OpenCode 1.19.0.
+2. Clone to the same relative place:
+   `git clone https://github.com/fr3dsz/opencode-setup.git ~/Dev/opencode-setup`
+   (Windows: `$HOME\Dev\opencode-setup`).
+3. Claude Code: run the adapter installer `--check`, then `--dry-run`, then
+   `--apply` (see above).
+4. GitNexus MCP for Claude Code (user scope, lives in `~/.claude.json`, so
+   it is registered per machine rather than deployed):
+
+   ```bash
+   # macOS / Linux: absolute paths to the pinned Node and GitNexus CLI
+   claude mcp add gitnexus -s user -- \
+     ~/.nvm/versions/node/v22.23.2/bin/node \
+     ~/.nvm/versions/node/v22.23.2/lib/node_modules/gitnexus/dist/cli/index.js mcp
+   ```
+
+   ```powershell
+   # Windows: after `npm install -g gitnexus@1.6.12`
+   claude mcp add gitnexus -s user -- cmd /c gitnexus mcp
+   ```
+
+   Verify with `claude mcp list`.
+5. OpenCode (optional, needed for `opencode-delegate`): run the OpenCode
+   installer (see Installation), then `opencode auth login`.
+6. Optional: install Impeccable from its upstream repository into
+   `~/.claude/skills/impeccable`.
