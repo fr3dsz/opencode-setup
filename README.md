@@ -19,6 +19,8 @@ Node v22.23.2. OpenCode 2.0 migration is deferred to a separate phase.
   them into the live configuration.
 - `adapters/opencode/scripts/` — installation and setup scripts
   (`install.sh` for macOS/Linux, `install.ps1` for Windows).
+- `adapters/claude/` — Claude Code adapter (see below). Claude Code is the
+  lead agent; OpenCode free models are optional delegated workers.
 
 `evidence/` (Bronze/Silver/Gold refinement) and token/context budgets are
 separate concerns with reserved paths; neither lives inside the other.
@@ -134,3 +136,36 @@ Platform coverage: the full matrix is verified on macOS for `install.sh`.
 never been runtime-tested (see the Windows note above). Windows layout
 discovery (B3), UTF-8-no-BOM bytes, and activation semantics remain
 unverified until a Windows `--check` → `--dry-run` output review.
+
+## Claude Code Adapter
+
+Claude Code reads the same `core/` content as OpenCode, so instructions and
+skills exist once.
+
+- `config/CLAUDE.md` — global `~/.claude/CLAUDE.md`; @imports
+  `core/instructions/AGENTS.md` and adds Claude-specific orchestration.
+- `config/settings.json` — permission allow/deny baseline (secrets, build
+  output, destructive git). Seeded only when missing, because Claude Code
+  edits it at runtime; afterwards the installer reports drift.
+- `agents/` — `Explore` and `test-runner` subagents on Haiku, so searches
+  and test output stay out of the main context.
+- `rules/` — path-scoped rules that point backend, frontend, and ML files
+  to the right skills.
+- `skills/opencode-delegate/` — lets Claude hand small, fully specified tasks
+  to an OpenCode free model through `scripts/oc-run.sh` (commits and pushes
+  blocked, every run undoable), then review the diff itself. Use only
+  zero-retention free models; see the skill for the list.
+
+Skills, agents, and rules are symlinked into `~/.claude`, so edits in this
+repository take effect immediately. Memory, sessions, plugins, Impeccable,
+and project-local skills (such as a thesis repo's `thesis-research`) stay
+machine-local and are not managed here.
+
+```bash
+./adapters/claude/scripts/install.sh            # dry run (default)
+./adapters/claude/scripts/install.sh --check    # exit 1 on drift
+./adapters/claude/scripts/install.sh --apply    # back up, then link/write
+```
+
+Replaced entries are moved to `<name>.bak-YYYYmmdd-HHMMSS`. Set
+`CLAUDE_SETUP_DEST=/abs/sandbox` to test without touching `~/.claude`.
