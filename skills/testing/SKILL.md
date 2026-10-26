@@ -1,108 +1,41 @@
 ---
 name: testing
-description: Use when creating, updating, running, or evaluating tests, or when verifying that a code change works correctly without introducing regressions.
+description: Use when writing, fixing, or running tests, or when you need to prove a change works — unit tests, integration tests, regression tests for a bug, test data, and reading test results.
 ---
 
 # Testing
 
-Use this skill when verification through tests is relevant.
+## Find how the project tests
 
-## Core Principle
+Look for the test command in `README.md`, `package.json` scripts, `pom.xml` / `mvnw`, `pyproject.toml`, or `Makefile`. Use that command. Do not invent a new test setup.
 
-Tests should provide evidence that the system behaves correctly.
+## What to test
 
-Do not create tests merely to increase coverage numbers.
+- New behavior: at least one test for the normal case and one for a failure or edge case.
+- Bug fix: first write a test that fails because of the bug, then fix the code, then see it pass.
+- Permissions: a user cannot read or change another user's or organization's data.
 
-## Before Writing Tests
+## Writing a good test
 
-Understand:
+- [ ] Test name says what should happen: `rejectsExpiredToken`, `returns404ForOtherOrganization`.
+- [ ] Arrange, act, assert. One behavior per test.
+- [ ] Assert on results the user cares about, not on internal details.
+- [ ] No real network calls or real secrets.
+- [ ] Test data lives in the test folder, next to the tests.
+- [ ] Copy the style of the existing tests in the same folder.
 
-- what behavior is expected
-- which component owns that behavior
-- existing testing conventions
-- existing test structure
-- available test commands
-- relevant project documentation
+## Running tests
 
-Reuse existing patterns whenever possible.
-
-## Test Selection
-
-Choose the smallest appropriate test scope.
-
-Prefer:
-
-1. focused unit test
-2. component/service test
-3. integration test
-4. end-to-end test
-
-Use broader tests when the change affects multiple components.
-
-## Test Design
-
-Tests should verify behavior rather than implementation details when practical.
-
-Prefer:
-
-- clear inputs
-- deterministic behavior
-- explicit expected results
-- isolated failures
-- meaningful test names
-
-Avoid brittle tests that depend unnecessarily on:
-
-- internal implementation details
-- timing
-- random values
-- external services
-- machine-specific state
-
-## When Fixing a Bug
-
-For a bug:
-
-1. reproduce the failure
-2. create or identify a test that demonstrates it
-3. fix the implementation
-4. verify the test now passes
-5. run relevant regression tests
-
-## Test Data
-
-Use safe and representative test data.
-
-Do not use:
-
-- real credentials
-- production secrets
-- unnecessary personal information
-- destructive production data
-
-## Verification
-
-After changes, use the project's existing verification commands.
-
-Examples include:
-
-- unit tests
-- integration tests
-- type checking
-- linting
-- builds
-- static analysis
-
-Do not invent commands if the project already documents them.
+1. Run only the related tests first (one file or class).
+2. Then run the full suite if it is fast enough.
+3. If a test fails, read the full error, find the file and line, and fix the cause. Do not delete or skip the test to make it pass.
 
 ## Reporting
 
-State:
+Say:
 
-- what tests were run
-- what passed
-- what failed
-- what could not be run
-- any remaining uncertainty
+- The exact command you ran.
+- How many passed, failed, skipped.
+- For each failure: test name, file, and the error message.
 
-Never claim tests passed if they were not actually executed.
+Never say tests pass if you did not run them.

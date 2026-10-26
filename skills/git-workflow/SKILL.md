@@ -1,92 +1,100 @@
 ---
 name: git-workflow
-description: Use when inspecting Git state, creating commits, preparing branches, reviewing diffs, resolving merge issues, or performing other repository version-control workflows.
+description: Use for any git task — checking status, creating branches, writing commit messages, committing, pushing, pull requests, merging, conflicts, version numbers, tags, and releases. Follows the main/development/feature branch model, Conventional Commit types, and semantic version tags.
 ---
 
 # Git Workflow
 
-Treat Git as a safety mechanism and historical record.
+## Before anything
 
-## Before Significant Changes
+```bash
+git status
+git branch --show-current
+git log --oneline -5
+```
 
-Inspect:
+- If there are uncommitted changes you did not make, leave them alone.
+- Never work directly on `main`, `staging`, or `production`.
 
-- current branch
-- working tree status
-- relevant existing modifications
-- recent commits when useful
+## Branches
 
-Do not overwrite unrelated user changes.
+| Branch | Purpose |
+|---|---|
+| `main` | Stable, released code |
+| `development` | Features are merged here first |
+| `staging` | Testing before release (only if the project is deployed) |
+| `production` | What is live (only if there is a live deployment) |
 
-## Before Editing
+Order: `feature/*` → `development` → `staging` → `main` → `production`. Skip the ones that do not exist.
 
-If the working tree already contains changes:
+New work branch, always from `development`:
 
-- identify whether they are related
-- preserve unrelated changes
-- do not reset or discard them without explicit permission
+```bash
+git checkout development
+git pull
+git checkout -b feature/42-order-filters
+```
 
-## Diff Review
+Prefixes: `feature/`, `bugfix/`, `hotfix/` (from `main`), `refactor/`, `docs/`, `chore/`. Use the issue number if there is one.
 
-Before committing, inspect the diff.
+## Commit messages
 
-Check for:
+```
+type(scope): short summary in imperative mood
+```
 
-- unintended files
-- debugging code
-- secrets
-- generated files
-- unrelated changes
-- accidental deletions
-- formatting-only noise
+| Type | Use for |
+|---|---|
+| feat | new feature |
+| fix | bug fix |
+| refactor | code change, same behavior |
+| perf | faster |
+| test | tests only |
+| docs | documentation only |
+| style | formatting only |
+| build | build or dependencies |
+| ci | CI config |
+| chore | other maintenance |
+| revert | undo a commit |
 
-## Commits
+Examples: `feat(orders): filter by status (#42)`, `fix(auth): reject expired tokens`.
 
-Only create commits when:
+## Before committing
 
-- explicitly requested
-- the project's workflow explicitly requires it
+1. Commit only if the user asked.
+2. `git diff` and read it.
+3. Check: no secrets, no debug prints, no unrelated files, no generated files.
+4. Stage specific files: `git add <file>` (not `git add .` unless every change is yours).
+5. One logical change per commit.
+6. No AI attribution lines.
 
-Do not automatically commit after completing a task.
+## Pull requests
 
-## Commit Quality
+- Work branch → `development`. `development` → `main` for releases.
+- Title in commit format. Body: what, why, how it was tested.
+- Push or open a PR only if the user asked.
 
-When creating a commit:
+## Versions
 
-- keep it focused
-- describe the actual change
-- avoid unrelated modifications
-- do not include secrets or temporary files
+Tag `main` after a release: `vMAJOR.MINOR.PATCH`.
 
-## Destructive Operations
+- Major: new module, big refactor, or breaking change.
+- Minor: new feature or workflow or build change.
+- Patch: bug fix or small adjustment.
 
-Do not automatically run destructive Git commands such as:
+```bash
+npm version minor -m "chore(release): %s"   # Node projects
+git tag -a v1.4.0 -m "v1.4.0"              # other projects
+```
 
-- git reset --hard
-- git clean
-- force push
-- deleting branches
+Add an entry to `CHANGELOG.md` (Added / Changed / Fixed / Removed).
 
-unless explicitly authorized.
+## Never
 
-## Merge Conflicts
+- `git push --force`, `git reset --hard`, `git clean`, `git checkout -- .`
+- Deleting branches or tags
+- Rewriting history that was already pushed
 
-When resolving conflicts:
+## Conflicts
 
-1. understand both sides
-2. determine intended behavior
-3. preserve required changes
-4. inspect the resulting diff
-5. run relevant verification
-
-Never resolve conflicts by blindly choosing one side.
-
-## Final State
-
-After Git operations, report:
-
-- branch
-- relevant changed files
-- commit status if applicable
-- remaining uncommitted changes
-- unresolved conflicts if any
+Read both sides, keep what each side intended, run the tests, then show the user the result.

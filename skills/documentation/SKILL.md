@@ -1,128 +1,43 @@
 ---
 name: documentation
-description: Use when creating, updating, organizing, or reviewing project documentation, architecture documentation, data-flow documentation, READMEs, technical explanations, or developer guides.
+description: Use when writing or updating README files, docs folders, architecture notes, data-flow or security docs, API docs, changelogs, or decision records, and when code changes make existing docs wrong.
 ---
 
 # Documentation
 
-Documentation should explain the system accurately enough that another developer can understand and work on it without rediscovering everything from source code.
+Docs describe what the system actually does. Check the code before writing.
 
-## Core Principle
+## Standard files
 
-Documentation describes the actual system.
+| File | Contains |
+|---|---|
+| `README.md` | What it is, how to install, run, and test |
+| `CHANGELOG.md` | Changes per version: Added, Changed, Fixed, Removed |
+| `docs/architecture.md` | Main parts, what each does, how data moves between them |
+| `docs/security.md` | Who can access what, data types, data flows, protections |
+| `docs/decisions.md` | Short records: context, decision, consequence |
 
-Do not document assumptions as facts.
+Small projects may only need `README.md`. Do not create files nobody needs.
 
-Do not invent behavior that is not supported by the implementation or project requirements.
+## When to update docs
 
-## Before Writing
+Update docs in the same change when you alter:
 
-Inspect:
+- how to install, configure, run, or test
+- an API endpoint, request, or response
+- a data flow, permission rule, or stored data
+- module responsibilities or folder layout
 
-- project AGENTS.md
-- README
-- existing docs
-- relevant source code
-- configuration
-- tests
-- architecture where applicable
+Do not rewrite docs that the change does not affect.
 
-Use the GitNexus MCP tools (see global instructions) to understand relationships when the task justifies it.
+## Writing style
 
-## Documentation Layers
+- Short sections, plain words, concrete examples.
+- Commands in code blocks that can be copied and run.
+- Tables for lists of options, endpoints, or fields.
+- No marketing language. No guessing: if you are unsure, check the code or ask.
+- Never put secrets, real passwords, or real customer data in docs.
 
-Keep different kinds of information separate.
+## If docs and code disagree
 
-### Overview
-
-Explain:
-
-- what the project is
-- why it exists
-- major capabilities
-- major technologies
-- important boundaries
-
-### Architecture
-
-Explain:
-
-- major components
-- responsibilities
-- dependencies
-- communication between components
-- important architectural decisions
-
-### Data Flow
-
-Explain:
-
-- where data originates
-- transformations
-- processing stages
-- storage
-- outputs
-
-### Requirements
-
-Explain:
-
-- required behavior
-- constraints
-- supported scenarios
-- limitations
-
-### Decisions
-
-Record important architectural or technical decisions and their rationale.
-
-### Changelog
-
-Record meaningful changes rather than every trivial edit.
-
-## Writing Style
-
-Prefer:
-
-- clear language
-- concrete terminology
-- short sections
-- examples when useful
-- diagrams for complicated relationships
-- explicit assumptions
-
-Avoid:
-
-- unnecessary jargon
-- vague descriptions
-- marketing language in technical docs
-- documentation that merely repeats source code
-
-## Keeping Documentation Current
-
-When implementation changes significantly, determine whether related documentation must change.
-
-Do not update unrelated documentation.
-
-## Accuracy
-
-If the implementation and documentation disagree:
-
-1. identify the discrepancy
-2. determine which source represents the intended behavior
-3. do not silently choose one
-4. ask for clarification when necessary
-
-## For Research Projects
-
-Document:
-
-- dataset assumptions
-- preprocessing
-- experimental configuration
-- model architecture
-- evaluation methodology
-- reproducibility requirements
-- known limitations
-
-Keep research methodology separate from generic software documentation.
+Do not silently pick one. Tell the user which file says what, and ask which is correct.

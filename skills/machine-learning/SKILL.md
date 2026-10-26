@@ -1,181 +1,43 @@
 ---
 name: machine-learning
-description: Use when working on machine-learning or AI projects involving datasets, preprocessing, feature engineering, model development, training, evaluation, experiments, inference, or reproducibility.
+description: Use for machine-learning and AI model work — datasets, preprocessing, data splits, feature extraction, model architecture, training loops, evaluation metrics, experiments, inference, PyTorch, notebooks, and research or thesis code.
 ---
 
 # Machine Learning
 
-Treat machine-learning systems as both software systems and experimental systems.
+## Before changing anything
 
-Correctness includes both implementation correctness and experimental validity.
+1. Read the project's `AGENTS.md` and docs. In a thesis or research repo, the paper or methodology doc is the source of truth. Do not change the method without asking.
+2. Find the config files and the entry scripts (train, evaluate, infer).
 
-## Before Making Changes
+## Data
 
-Understand:
-
-- project objective
-- dataset structure
-- preprocessing pipeline
-- model architecture
-- training workflow
-- evaluation methodology
-- inference workflow
-- experiment configuration
-
-Read the project's ML documentation before making architectural changes.
-
-## Dataset Integrity
-
-Treat raw datasets as immutable unless the project explicitly defines a controlled transformation process.
-
-Do not:
-
-- silently modify raw data
-- mix evaluation data into training
-- reuse test data during training
-- create accidental train/test leakage
-- overwrite datasets without understanding provenance
-
-## Data Splits
-
-Maintain clear separation between:
-
-- training
-- validation
-- testing
-- inference/demo data
-
-Do not assume that a dataset split is valid simply because it exists.
-
-Consider leakage through:
-
-- duplicate samples
-- related videos/images
-- preprocessing performed before splitting
-- subject overlap
-- temporal overlap
-- metadata
-- generated derivatives
-
-## Preprocessing
-
-Preprocessing should be:
-
-- deterministic where practical
-- reproducible
-- documented
-- independently verifiable
-
-Record important:
-
-- parameters
-- input assumptions
-- output format
-- transformations
-- dependencies
-
-Validate intermediate outputs before continuing to later pipeline stages.
-
-## Features and Transformations
-
-Before changing feature extraction or transformations, understand:
-
-- mathematical purpose
-- expected shape
-- numerical range
-- dimensionality
-- downstream requirements
-
-Do not add transformations simply because they are common in other projects.
-
-## Model Architecture
-
-When modifying a model:
-
-1. understand current architecture
-2. understand input/output shapes
-3. identify affected components
-4. determine whether the change affects training or inference
-5. update documentation if the architecture changes
-
-Do not silently change research architecture.
+- [ ] Never modify or delete raw data. Write processed data to a separate folder.
+- [ ] Train, validation, and test splits never share samples (or the same source video, patient, or user).
+- [ ] Fit preprocessing (normalization, scalers) on training data only.
+- [ ] Record dataset version and split seeds.
 
 ## Training
 
-Training should be reproducible where practical.
-
-Track:
-
-- configuration
-- dataset version
-- preprocessing version
-- model configuration
-- hyperparameters
-- random seeds where applicable
-- software/environment information
-- checkpoints
-- metrics
-
-Avoid hardcoding experimental parameters when the project already uses configuration files.
+- [ ] Set random seeds for Python, NumPy, and the framework.
+- [ ] Hyperparameters live in a config file, not hardcoded.
+- [ ] Save checkpoints and the config used for each run.
+- [ ] Log loss and metrics per epoch.
 
 ## Evaluation
 
-Keep evaluation independent from training decisions.
+- [ ] Compute metrics from actual model predictions on the test set.
+- [ ] Never invent, round up, or edit results.
+- [ ] Use the metrics the method or paper specifies.
+- [ ] Report the exact config and checkpoint that produced each number.
 
-Do not tune the model against the final test set.
+## Changing the model
 
-Use the metrics defined by the project.
+- Match the architecture described in the method doc. If you think it should differ, ask first.
+- Change one thing per experiment so the effect is clear.
 
-Report enough context to interpret metrics correctly.
+## Verify
 
-## Experiments
-
-Prefer controlled experiments.
-
-When changing one major factor, keep other relevant conditions consistent when possible.
-
-Record:
-
-- hypothesis
-- configuration
-- dataset
-- results
-- conclusion
-
-## Inference
-
-Keep inference separate from training and evaluation workflows.
-
-Inference/demo data should not automatically become evaluation data.
-
-## Reproducibility
-
-A future researcher should be able to determine:
-
-- what data was used
-- how it was transformed
-- what model was trained
-- what configuration was used
-- how evaluation was performed
-
-## Computational Constraints
-
-Respect project hardware constraints.
-
-Prefer efficient approaches when they preserve research validity.
-
-Do not optimize away methodological requirements merely to make execution faster.
-
-## Verification
-
-Before trusting a model result, verify:
-
-1. dataset integrity
-2. preprocessing output
-3. tensor/input shapes
-4. model output
-5. training behavior
-6. evaluation implementation
-7. metric calculation
-
-A successful training run does not automatically mean the experiment is valid.
+- Run a short smoke test (one batch or one epoch on a small subset) before a full run.
+- Check tensor shapes and device (CPU or GPU) at each stage when something fails.
+- Report what you ran and the actual numbers.
