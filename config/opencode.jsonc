@@ -1,32 +1,65 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  // Portable OpenCode configuration template (OpenCode 1.x).
+  // Portable OpenCode 2.x configuration template.
   //
-  // This file is NEVER copied verbatim into live configuration. The
-  // adapter installer renders the @@GITNEXUS_*@@ placeholders below into
-  // absolute local paths and writes the result to the live config file.
-  // Placeholder syntax is installer-owned: OpenCode environment-variable
-  // interpolation is NOT used here. The installer must reject any rendered
-  // output that still contains an "@@" placeholder before deployment.
+  // Never copied verbatim: the installer renders the @@...@@ placeholders to
+  // absolute paths in the pinned Node tree, strips full-line // comments,
+  // and refuses to deploy if any placeholder survives.
+  // - @@NODE@@          pinned Node executable (exact version check)
+  // - @@GITNEXUS_CLI@@  GitNexus dist/cli/index.js in that Node tree
+  // - @@DEVTOOLS_CLI@@  chrome-devtools-mcp bin in that Node tree
   //
-  // Full-line // comments in this template are documentation only and are
-  // stripped at render time; the deployed live config is minimal JSONC.
-  //
-  // Resolution contract (implemented by the installer, not by OpenCode):
-  // - @@GITNEXUS_NODE@@ resolves to a Node executable that reports the
-  //   required Node version (see adapters/opencode/scripts/install.sh).
-  //   The default PATH node is never assumed suitable; it is accepted only
-  //   if its reported version matches exactly.
-  // - @@GITNEXUS_CLI@@ resolves to the GitNexus CLI entrypoint
-  //   (dist/cli/index.js) belonging to the same installation tree as the
-  //   resolved Node, and must report the required GitNexus version.
-  // - The rendered command preserves the proven absolute-path stdio launch:
-  //   ["<node>", "<cli>", "mcp"].
-  "mcp": {
-    "gitnexus": {
-      "type": "local",
-      "command": ["@@GITNEXUS_NODE@@", "@@GITNEXUS_CLI@@", "mcp"],
-      "enabled": true,
-    },
+  // Permissions are guardrails for free models: later rules override
+  // earlier ones, and agent defaults are applied first.
+  "permissions": [
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "edit", "resource": "*.env", "effect": "deny" },
+    { "action": "edit", "resource": "*.env.*", "effect": "deny" },
+    { "action": "shell", "resource": "*git push*", "effect": "ask" },
+    { "action": "shell", "resource": "*git commit*", "effect": "ask" },
+    { "action": "shell", "resource": "*git rebase*", "effect": "ask" },
+    { "action": "shell", "resource": "*git branch -D*", "effect": "ask" },
+    { "action": "shell", "resource": "*git push --force*", "effect": "deny" },
+    { "action": "shell", "resource": "*git push -f*", "effect": "deny" },
+    { "action": "shell", "resource": "*git reset --hard*", "effect": "deny" },
+    { "action": "shell", "resource": "*git clean -*", "effect": "deny" },
+    { "action": "shell", "resource": "*git checkout -- *", "effect": "deny" },
+    { "action": "shell", "resource": "*rm -rf*", "effect": "ask" },
+    { "action": "shell", "resource": "*rm -r *", "effect": "ask" },
+    { "action": "shell", "resource": "*sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "*npm install*", "effect": "ask" },
+    { "action": "shell", "resource": "*npm i *", "effect": "ask" },
+    { "action": "shell", "resource": "*pnpm add*", "effect": "ask" },
+    { "action": "shell", "resource": "*yarn add*", "effect": "ask" },
+    { "action": "shell", "resource": "*pip install*", "effect": "ask" },
+    { "action": "shell", "resource": "*curl *", "effect": "ask" },
+    { "action": "shell", "resource": "*wget *", "effect": "ask" }
+  ],
+  // Bounded loops: free models can repeat a failing step indefinitely.
+  "agents": {
+    "build": { "steps": 100 },
+    "plan": { "steps": 50 }
   },
+  "mcp": {
+    "servers": {
+      "gitnexus": {
+        "type": "local",
+        "command": ["@@NODE@@", "@@GITNEXUS_CLI@@", "mcp"]
+      },
+      "chrome-devtools": {
+        "type": "local",
+        "command": [
+          "@@NODE@@",
+          "@@DEVTOOLS_CLI@@",
+          "--isolated",
+          "--no-usage-statistics",
+          "--redact-network-headers",
+          "--category-memory=false",
+          "--category-emulation=false"
+        ]
+      }
+    }
+  }
 }

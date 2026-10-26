@@ -17,8 +17,10 @@
 #   replacement. Deployment is ordered per file, NOT atomic across files.
 # - A working live configuration is never overwritten without explicit
 #   deployment approval (an explicit --apply invocation by the operator).
-# - No automatic installation of Node, GitNexus, or any package. No
-#   repository indexing. Impeccable is an optional existing dependency
+# - Skill backups go to setup-backups/skills/, outside skills/, so OpenCode
+#   never discovers a backup as a duplicate skill.
+# - No automatic installation of Node, GitNexus, chrome-devtools-mcp, or any
+#   package. No repository indexing. Impeccable is an optional existing dependency
 #   documented in README.md; this installer does not install it.
 #
 # NOTE: PowerShell cannot be runtime-tested on the maintainer's Mac (no
@@ -38,6 +40,8 @@ $ErrorActionPreference = "Stop"
 
 $RequiredNodeVersion = "v22.23.2"
 $RequiredGitNexusVersion = "1.6.12"
+$RequiredDevToolsVersion = "1.12.0"
+$RequiredOpenCodeMajor = "2"
 
 function Fail([string]$Message) {
     Write-Error $Message
@@ -148,6 +152,20 @@ function Find-GitNexusCli([string]$NodeBin) {
     return $null
 }
 
+function Find-DevToolsCli([string]$NodeBin) {
+    $NodeParent = Split-Path -Parent $NodeBin
+    $Relative = "chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js"
+    $Candidates = @(
+        (Join-Path $NodeParent "node_modules/$Relative"),
+        (Join-Path (Split-Path -Parent $NodeParent) "lib/node_modules/$Relative")
+    )
+    if ($env:APPDATA) { $Candidates += Join-Path $env:APPDATA "npm/node_modules/$Relative" }
+    foreach ($Candidate in $Candidates) {
+        if (Test-Path $Candidate -PathType Leaf) { return $Candidate }
+    }
+    return $null
+}
+
 function Skills-Equal([string]$Source, [string]$Target) {
     if (-not (Test-Path $Target -PathType Container)) { return $false }
     # Backup-pattern files are live-operator artifacts: excluded from the
@@ -183,7 +201,11 @@ Write-Host "Repository: $RepoDir"
 if (-not (Get-Command opencode -ErrorAction SilentlyContinue)) {
     Fail "OpenCode is required but was not found on PATH."
 }
-Write-Host "OpenCode found."
+$OpenCodeVersion = [regex]::Match((& opencode --version 2>$null | Out-String), '\d+\.\d+\.\d+').Value
+if (-not $OpenCodeVersion.StartsWith("$RequiredOpenCodeMajor.")) {
+    Fail "OpenCode reports '$OpenCodeVersion', required $RequiredOpenCodeMajor.x (the config uses the 2.x schema)."
+}
+Write-Host "OpenCode found: $OpenCodeVersion"
 
 $NodeBin = Find-Node
 if (-not $NodeBin) { Fail "No suitable Node found (required $RequiredNodeVersion). Install it and re-run with --check." }
@@ -197,13 +219,27 @@ if ($GitNexusVersion -ne $RequiredGitNexusVersion) {
 }
 Write-Host "GitNexus: $GitNexusCli ($GitNexusVersion)"
 
+$DevToolsCli = Find-DevToolsCli $NodeBin
+if (-not $DevToolsCli) {
+    Fail "chrome-devtools-mcp not found in the resolved Node tree. Install it: npm install -g --ignore-scripts chrome-devtools-mcp@$RequiredDevToolsVersion"
+}
+$DevToolsPackage = Join-Path (Split-Path -Parent $DevToolsCli) "../../../package.json"
+$DevToolsVersion = (Get-Content $DevToolsPackage -Raw | ConvertFrom-Json).version
+if ($DevToolsVersion -ne $RequiredDevToolsVersion) {
+    Fail "chrome-devtools-mcp reports '$DevToolsVersion', required '$RequiredDevToolsVersion'. Will not proceed."
+}
+Write-Host "Chrome DevTools MCP: $DevToolsCli ($DevToolsVersion)"
+
 # --- Template validation and rendering (installer-owned @@PLACEHOLDER@@ syntax) ---
 
 $TemplateText = Get-Content $SourceTemplate -Raw -Encoding UTF8
-if ($TemplateText -notmatch '@@GITNEXUS_NODE@@') { Fail "Template missing @@GITNEXUS_NODE@@ placeholder." }
-if ($TemplateText -notmatch '@@GITNEXUS_CLI@@') { Fail "Template missing @@GITNEXUS_CLI@@ placeholder." }
+foreach ($Placeholder in @("NODE", "GITNEXUS_CLI", "DEVTOOLS_CLI")) {
+    if (-not $TemplateText.Contains("@@$Placeholder@@")) { Fail "Template missing @@$Placeholder@@ placeholder." }
+}
 
-$Rendered = $TemplateText.Replace('@@GITNEXUS_NODE@@', $NodeBin).Replace('@@GITNEXUS_CLI@@', $GitNexusCli)
+# Forward slashes keep the paths valid inside JSON strings without escaping.
+function To-JsonPath([string]$Path) { return ($Path -replace '\\', '/') }
+$Rendered = $TemplateText.Replace('@@NODE@@', (To-JsonPath $NodeBin)).Replace('@@GITNEXUS_CLI@@', (To-JsonPath $GitNexusCli)).Replace('@@DEVTOOLS_CLI@@', (To-JsonPath $DevToolsCli))
 # Template documentation uses full-line comments only; strip them so the
 # deployed live config stays minimal JSONC.
 $Rendered = (($Rendered -split "`n") | Where-Object { $_ -notmatch '^\s*//' }) -join "`n"
@@ -215,8 +251,9 @@ if ($Rendered -match '(?m)^\s*//') {
     Fail "Template documentation comments leaked into rendered config; refusing to deploy."
 }
 if ($Rendered -notmatch '"gitnexus"') { Fail "Rendered config missing gitnexus entry; refusing to deploy." }
+if ($Rendered -notmatch '"chrome-devtools"') { Fail "Rendered config missing chrome-devtools entry; refusing to deploy." }
 if ([string]::IsNullOrWhiteSpace($Rendered)) { Fail "Rendered config is empty; refusing to deploy." }
-Write-Host "Template rendered and verified (placeholders resolved, gitnexus entry present)."
+Write-Host "Template rendered and verified (placeholders resolved, MCP entries present)."
 
 # --- Deployment plan (computed without writing) ---
 
@@ -313,7 +350,9 @@ Get-ChildItem -Path $SourceSkillsDir -Directory | ForEach-Object {
     }
     $TargetSkill = Join-Path $OpenCodeSkillsDir $SkillName
     if (Test-Path $TargetSkill -PathType Container) {
-        $BackupSkill = Get-UniqueBackupPath $TargetSkill
+        $SkillBackupDir = Join-Path $OpenCodeConfigDir "setup-backups/skills"
+        New-Item -ItemType Directory -Force -Path $SkillBackupDir | Out-Null
+        $BackupSkill = Get-UniqueBackupPath (Join-Path $SkillBackupDir $SkillName)
         Copy-Item -Path $TargetSkill -Destination $BackupSkill -Recurse
         Write-Host "Backed up skill: $SkillName -> $BackupSkill"
         Remove-Item -Path $TargetSkill -Recurse -Force

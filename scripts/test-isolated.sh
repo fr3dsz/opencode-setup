@@ -151,11 +151,13 @@ else
   fail "T1: AGENTS.md missing or mismatched"
 fi
 ALL_SKILLS=1
+SKILL_COUNT=0
 for d in "$REPO_DIR"/skills/*/; do
   n="$(basename "$d")"
+  SKILL_COUNT=$((SKILL_COUNT + 1))
   if [ ! -f "$SANDBOX/cfg/skills/$n/SKILL.md" ]; then ALL_SKILLS=0; fi
 done
-[ "$ALL_SKILLS" = "1" ] && pass "T1: all 11 skills deployed" || fail "T1: skill set incomplete"
+[ "$ALL_SKILLS" = "1" ] && pass "T1: all $SKILL_COUNT skills deployed" || fail "T1: skill set incomplete"
 if grep -Eq '@@[A-Z_]+@@' "$SANDBOX/cfg/opencode.jsonc"; then
   fail "T1: unresolved placeholders in deployed config"
 else
@@ -196,7 +198,7 @@ STALE_SKILL="$(md5 -r "$SANDBOX/cfg/skills/debugging/SKILL.md" | awk '{print $1}
 STALE_CONFIG="$(md5 -r "$SANDBOX/cfg/opencode.jsonc" | awk '{print $1}')"
 BEFORE="$(live_manifest)"
 run_isolated --apply || fail "T3: --apply failed on outdated destination"
-if diff -qr -x '*.bak-*' -x '*.backup' -x '*.pre-gitnexus-*' "$SANDBOX/good" "$SANDBOX/cfg" >/dev/null 2>&1; then
+if diff -qr -x '*.bak-*' -x '*.backup' -x '*.pre-gitnexus-*' -x setup-backups "$SANDBOX/good" "$SANDBOX/cfg" >/dev/null 2>&1; then
   pass "T3: outdated destination converged to expected state"
 else
   fail "T3: destination did not converge"
@@ -207,10 +209,11 @@ for b in "$SANDBOX"/cfg/AGENTS.md.bak-*; do
 done
 [ "$FOUND" = "1" ] && pass "T3: AGENTS.md backup byte-matches seeded original" || fail "T3: AGENTS.md backup mismatch"
 FOUND=0
-for b in "$SANDBOX"/cfg/skills/debugging.bak-*; do
+for b in "$SANDBOX"/cfg/setup-backups/skills/debugging.bak-*; do
   [ -d "$b" ] && [ "$(md5 -r "$b/SKILL.md" | awk '{print $1}')" = "$STALE_SKILL" ] && FOUND=1
 done
 [ "$FOUND" = "1" ] && pass "T3: skill backup byte-matches seeded original" || fail "T3: skill backup mismatch"
+[ -z "$(find "$SANDBOX/cfg/skills" -maxdepth 1 -name '*.bak-*')" ] && pass "T3: no skill backups inside skills/" || fail "T3: skill backup left inside skills/"
 FOUND=0
 for b in "$SANDBOX"/cfg/opencode.jsonc.bak-* "$SANDBOX"/cfg/opencode.jsonc.bak-*-*; do
   [ -f "$b" ] && [ "$(md5 -r "$b" | awk '{print $1}')" = "$STALE_CONFIG" ] && FOUND=1
@@ -233,7 +236,7 @@ for f in SKILL.md.pre-gitnexus-9 extra.backup; do
 done
 grep -q "skill backend-engineering: up-to-date (live-only extras preserved" "$SANDBOX/last-out.txt" && pass "T4: plan annotates preserved extras" || fail "T4: plan silent about preserved extras"
 SWEPT=0
-for b in "$SANDBOX"/cfg/skills/architecture.bak-*; do
+for b in "$SANDBOX"/cfg/setup-backups/skills/architecture.bak-*; do
   [ -f "$b/notes.txt" ] && [ "$(cat "$b/notes.txt")" = "operator notes" ] && SWEPT=1
 done
 [ "$SWEPT" = "1" ] && pass "T4: non-backup extra swept into timestamped backup" || fail "T4: swept extra not found in backup"
@@ -271,7 +274,7 @@ cp "$REPO_DIR/instructions/AGENTS.md" "$FIXREPO/instructions/AGENTS.md"
 cp -R "$REPO_DIR"/skills/* "$FIXREPO/skills/"
 cp "$REPO_DIR/config/opencode.jsonc" "$FIXREPO/config/opencode.jsonc"
 # T6a: corrupted template (unresolvable placeholder).
-sed 's/@@GITNEXUS_NODE@@/@@BROKEN@@/' "$FIXREPO/config/opencode.jsonc" > "$FIXREPO/config/opencode.jsonc.bad" && mv "$FIXREPO/config/opencode.jsonc.bad" "$FIXREPO/config/opencode.jsonc"
+sed 's/@@NODE@@/@@BROKEN@@/' "$FIXREPO/config/opencode.jsonc" > "$FIXREPO/config/opencode.jsonc.bad" && mv "$FIXREPO/config/opencode.jsonc.bad" "$FIXREPO/config/opencode.jsonc"
 export OPENCODE_SETUP_DEST="$SANDBOX/cfg6a"
 if bash "$FIXREPO/scripts/install.sh" --check >"$SANDBOX/last-out.txt" 2>&1; then
   fail "T6a: corrupted template passed validation"

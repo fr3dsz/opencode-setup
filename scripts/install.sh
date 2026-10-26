@@ -5,8 +5,7 @@
 # Deploys repository content to live OpenCode configuration:
 #   instructions/AGENTS.md  -> ~/.config/opencode/AGENTS.md
 #   skills/*                -> ~/.config/opencode/skills/*
-#   config/opencode.jsonc (template, placeholders rendered)
-#                                -> ~/.config/opencode/opencode.jsonc
+#   config/opencode.jsonc   -> ~/.config/opencode/opencode.jsonc (rendered)
 #
 # Safety contract (mirrored by install.ps1):
 # - --dry-run is the DEFAULT. It prints the full deployment plan and changes
@@ -20,14 +19,18 @@
 #   each file is backed up and replaced individually.
 # - A working live configuration is never overwritten without explicit
 #   deployment approval (an explicit --apply invocation by the operator).
-# - No automatic installation of Node, GitNexus, or any package. No
-#   repository indexing. Impeccable is an optional existing dependency
+# - Skill backups go to setup-backups/skills/, outside skills/, so OpenCode
+#   never discovers a backup as a duplicate skill.
+# - No automatic installation of Node, GitNexus, chrome-devtools-mcp, or any
+#   package. No repository indexing. Impeccable is an optional existing dependency
 #   documented in README.md; this installer does not install it.
 
 set -euo pipefail
 
 REQUIRED_NODE_VERSION="v22.23.2"
 REQUIRED_GITNEXUS_VERSION="1.6.12"
+REQUIRED_DEVTOOLS_VERSION="1.12.0"
+REQUIRED_OPENCODE_MAJOR="2"
 
 usage() {
   cat <<'USAGE'
@@ -151,6 +154,14 @@ find_gitnexus_cli() {
 # Backup-pattern files are live-operator artifacts: they never deploy from
 # the repo and never block up-to-date detection. They are swept into the
 # timestamped backup only when a payload write actually occurs.
+find_devtools_cli() {
+  local node_dir
+  node_dir="$(cd "$(dirname "$1")/.." && pwd)"
+  local cli="$node_dir/lib/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js"
+  [ -f "$cli" ] || return 1
+  printf '%s' "$cli"
+}
+
 skills_equal() {
   diff -qr -x '*.backup' -x '*.bak-*' -x '*.pre-gitnexus-*' "$1" "$2" >/dev/null 2>&1
 }
@@ -159,7 +170,11 @@ echo "Mode: $MODE"
 echo "Repository: $REPO_DIR"
 
 command -v opencode >/dev/null 2>&1 || fail "OpenCode is required but was not found on PATH."
-echo "OpenCode found: $(opencode --version 2>/dev/null || echo unknown)"
+OPENCODE_VERSION="$(opencode --version 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)"
+case "$OPENCODE_VERSION" in
+  "$REQUIRED_OPENCODE_MAJOR".*) echo "OpenCode found: $OPENCODE_VERSION" ;;
+  *) fail "OpenCode reports '$OPENCODE_VERSION', required $REQUIRED_OPENCODE_MAJOR.x (the config uses the 2.x schema)." ;;
+esac
 
 NODE_BIN="$(find_node)" || fail "No suitable Node found (required $REQUIRED_NODE_VERSION). Install it via nvm and re-run with --check."
 echo "Node: $NODE_BIN ($("$NODE_BIN" --version))"
@@ -169,10 +184,16 @@ GITNEXUS_VERSION="$("$NODE_BIN" "$GITNEXUS_CLI" --version 2>/dev/null || true)"
 [ "$GITNEXUS_VERSION" = "$REQUIRED_GITNEXUS_VERSION" ] || fail "GitNexus reports '$GITNEXUS_VERSION', required '$REQUIRED_GITNEXUS_VERSION'. Will not proceed."
 echo "GitNexus: $GITNEXUS_CLI ($GITNEXUS_VERSION)"
 
+DEVTOOLS_CLI="$(find_devtools_cli "$NODE_BIN")" || fail "chrome-devtools-mcp not found in the resolved Node tree. Install it: $(dirname "$NODE_BIN")/npm install -g --ignore-scripts chrome-devtools-mcp@$REQUIRED_DEVTOOLS_VERSION"
+DEVTOOLS_VERSION="$("$NODE_BIN" -p "require(process.argv[1]).version" "$(dirname "$DEVTOOLS_CLI")/../../../package.json" 2>/dev/null || true)"
+[ "$DEVTOOLS_VERSION" = "$REQUIRED_DEVTOOLS_VERSION" ] || fail "chrome-devtools-mcp reports '$DEVTOOLS_VERSION', required '$REQUIRED_DEVTOOLS_VERSION'. Will not proceed."
+echo "Chrome DevTools MCP: $DEVTOOLS_CLI ($DEVTOOLS_VERSION)"
+
 # --- Template validation and rendering (installer-owned @@PLACEHOLDER@@ syntax) ---
 
-grep -q '@@GITNEXUS_NODE@@' "$SOURCE_TEMPLATE" || fail "Template missing @@GITNEXUS_NODE@@ placeholder."
-grep -q '@@GITNEXUS_CLI@@' "$SOURCE_TEMPLATE" || fail "Template missing @@GITNEXUS_CLI@@ placeholder."
+for placeholder in NODE GITNEXUS_CLI DEVTOOLS_CLI; do
+  grep -q "@@${placeholder}@@" "$SOURCE_TEMPLATE" || fail "Template missing @@${placeholder}@@ placeholder."
+done
 
 RENDERED_TMP="$(mktemp "${TMPDIR:-/tmp}/opencode.jsonc.XXXXXX")"
 # B1: staging files are unique (mktemp) and removed on every exit path,
@@ -183,8 +204,9 @@ trap 'rm -f "$RENDERED_TMP"; if [ -n "${CONFIG_TMP:-}" ]; then rm -f "$CONFIG_TM
 sed_escape() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
 # Template documentation uses full-line comments only; the renderer strips
 # them so the deployed live config stays minimal JSONC.
-sed -e "s|@@GITNEXUS_NODE@@|$(sed_escape "$NODE_BIN")|g" \
+sed -e "s|@@NODE@@|$(sed_escape "$NODE_BIN")|g" \
     -e "s|@@GITNEXUS_CLI@@|$(sed_escape "$GITNEXUS_CLI")|g" \
+    -e "s|@@DEVTOOLS_CLI@@|$(sed_escape "$DEVTOOLS_CLI")|g" \
     "$SOURCE_TEMPLATE" | grep -v '^[[:space:]]*//' > "$RENDERED_TMP"
 
 if grep -Eq '@@[A-Z_]+@@' "$RENDERED_TMP"; then
@@ -194,8 +216,9 @@ if grep -Eq '^[[:space:]]*//' "$RENDERED_TMP"; then
   fail "Template documentation comments leaked into rendered config; refusing to deploy."
 fi
 grep -q '"gitnexus"' "$RENDERED_TMP" || fail "Rendered config missing gitnexus entry; refusing to deploy."
+grep -q '"chrome-devtools"' "$RENDERED_TMP" || fail "Rendered config missing chrome-devtools entry; refusing to deploy."
 [ -s "$RENDERED_TMP" ] || fail "Rendered config is empty; refusing to deploy."
-echo "Template rendered and verified (placeholders resolved, gitnexus entry present)."
+echo "Template rendered and verified (placeholders resolved, MCP entries present)."
 
 # --- Deployment plan (computed without writing) ---
 
@@ -282,7 +305,8 @@ for source_skill in "$SOURCE_SKILLS_DIR"/*; do
     continue
   fi
   if [ -d "$target_skill" ]; then
-    skill_backup="$(unique_backup_path "$target_skill")"
+    mkdir -p "$OPENCODE_CONFIG_DIR/setup-backups/skills" || fail "Cannot create skill backup directory."
+    skill_backup="$(unique_backup_path "$OPENCODE_CONFIG_DIR/setup-backups/skills/$skill_name")"
     cp -R "$target_skill" "$skill_backup" || fail "Backup failed for skill $skill_name; aborting."
     echo "Backed up skill: $skill_name -> $skill_backup"
     rm -rf "$target_skill"
