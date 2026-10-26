@@ -37,3 +37,6 @@ node_modules/
 
 # OpenCode/local generated data
 .codegraph/
+
+# Local lint terms (private)
+.lint-forbidden
