@@ -5,6 +5,4 @@
 # normalization is applied.
 *.sh text eol=lf
 *.ps1 text eol=lf
-adapters/opencode/config/opencode.jsonc text eol=lf
-# Claude adapter config is rendered and compared byte-for-byte on Windows too.
-adapters/claude/config/* text eol=lf
+config/opencode.jsonc text eol=lf
