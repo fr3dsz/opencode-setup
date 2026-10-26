@@ -19,15 +19,15 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-for marker in "core/instructions/AGENTS.md" "core/skills" "adapters/opencode/config/opencode.jsonc" "adapters/opencode/scripts/install.sh"; do
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+for marker in "instructions/AGENTS.md" "skills" "config/opencode.jsonc" "scripts/install.sh"; do
   if [ ! -e "$REPO_DIR/$marker" ]; then
     echo "FATAL: repository marker missing: $marker" >&2
     exit 2
   fi
 done
 
-INSTALLER="$REPO_DIR/adapters/opencode/scripts/install.sh"
+INSTALLER="$REPO_DIR/scripts/install.sh"
 LIVE_DIR="$HOME/.config/opencode"
 
 SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/ocsetup-test.XXXXXX")"
@@ -145,13 +145,13 @@ run_isolated --apply || fail "T1: --apply failed on empty destination"
 assert_plan_sandboxed "T1-apply"
 NODE_BIN="$(reported_path Node)"
 CLI_PATH="$(reported_path GitNexus)"
-if [ -f "$SANDBOX/cfg/AGENTS.md" ] && cmp -s "$REPO_DIR/core/instructions/AGENTS.md" "$SANDBOX/cfg/AGENTS.md"; then
+if [ -f "$SANDBOX/cfg/AGENTS.md" ] && cmp -s "$REPO_DIR/instructions/AGENTS.md" "$SANDBOX/cfg/AGENTS.md"; then
   pass "T1: AGENTS.md deployed"
 else
   fail "T1: AGENTS.md missing or mismatched"
 fi
 ALL_SKILLS=1
-for d in "$REPO_DIR"/core/skills/*/; do
+for d in "$REPO_DIR"/skills/*/; do
   n="$(basename "$d")"
   if [ ! -f "$SANDBOX/cfg/skills/$n/SKILL.md" ]; then ALL_SKILLS=0; fi
 done
@@ -254,7 +254,7 @@ if [ "$COUNT" -ge 2 ] && [ "$COUNT" -eq "$UNIQ" ]; then
 else
   fail "T5: backup collision (names: $NAMES)"
 fi
-cmp -s "$REPO_DIR/core/instructions/AGENTS.md" "$SANDBOX/cfg/AGENTS.md" && pass "T5: final state converged" || fail "T5: final state diverged"
+cmp -s "$REPO_DIR/instructions/AGENTS.md" "$SANDBOX/cfg/AGENTS.md" && pass "T5: final state converged" || fail "T5: final state diverged"
 if [ "$R1" = "$(md5 -r "$SANDBOX/cfg/AGENTS.md" 2>/dev/null | awk '{print $1}')" ]; then
   fail "T5: stale content survived"
 else
@@ -265,25 +265,25 @@ assert_live_untouched "T5" "$SUITE_BEFORE"
 
 # --- T6: validation failures abort before any write ---
 FIXREPO="$SANDBOX/fixrepo"
-mkdir -p "$FIXREPO/adapters/opencode/scripts" "$FIXREPO/adapters/opencode/config" "$FIXREPO/core/instructions" "$FIXREPO/core/skills/debugging"
-cp "$INSTALLER" "$FIXREPO/adapters/opencode/scripts/install.sh"
-cp "$REPO_DIR/core/instructions/AGENTS.md" "$FIXREPO/core/instructions/AGENTS.md"
-cp -R "$REPO_DIR"/core/skills/* "$FIXREPO/core/skills/"
-cp "$REPO_DIR/adapters/opencode/config/opencode.jsonc" "$FIXREPO/adapters/opencode/config/opencode.jsonc"
+mkdir -p "$FIXREPO/scripts" "$FIXREPO/config" "$FIXREPO/instructions" "$FIXREPO/skills/debugging"
+cp "$INSTALLER" "$FIXREPO/scripts/install.sh"
+cp "$REPO_DIR/instructions/AGENTS.md" "$FIXREPO/instructions/AGENTS.md"
+cp -R "$REPO_DIR"/skills/* "$FIXREPO/skills/"
+cp "$REPO_DIR/config/opencode.jsonc" "$FIXREPO/config/opencode.jsonc"
 # T6a: corrupted template (unresolvable placeholder).
-sed 's/@@GITNEXUS_NODE@@/@@BROKEN@@/' "$FIXREPO/adapters/opencode/config/opencode.jsonc" > "$FIXREPO/adapters/opencode/config/opencode.jsonc.bad" && mv "$FIXREPO/adapters/opencode/config/opencode.jsonc.bad" "$FIXREPO/adapters/opencode/config/opencode.jsonc"
+sed 's/@@GITNEXUS_NODE@@/@@BROKEN@@/' "$FIXREPO/config/opencode.jsonc" > "$FIXREPO/config/opencode.jsonc.bad" && mv "$FIXREPO/config/opencode.jsonc.bad" "$FIXREPO/config/opencode.jsonc"
 export OPENCODE_SETUP_DEST="$SANDBOX/cfg6a"
-if bash "$FIXREPO/adapters/opencode/scripts/install.sh" --check >"$SANDBOX/last-out.txt" 2>&1; then
+if bash "$FIXREPO/scripts/install.sh" --check >"$SANDBOX/last-out.txt" 2>&1; then
   fail "T6a: corrupted template passed validation"
 else
   grep -qi "placeholder\|refus" "$SANDBOX/last-out.txt" && pass "T6a: corrupted template rejected" || fail "T6a: unclear rejection"
 fi
 [ -e "$SANDBOX/cfg6a/AGENTS.md" ] || [ -e "$SANDBOX/cfg6a/opencode.jsonc" ] && fail "T6a: writes despite failure" || pass "T6a: no writes on validation failure"
 # T6b: missing SKILL.md in fixture repo.
-cp "$REPO_DIR/adapters/opencode/config/opencode.jsonc" "$FIXREPO/adapters/opencode/config/opencode.jsonc"
-rm "$FIXREPO/core/skills/debugging/SKILL.md"
+cp "$REPO_DIR/config/opencode.jsonc" "$FIXREPO/config/opencode.jsonc"
+rm "$FIXREPO/skills/debugging/SKILL.md"
 export OPENCODE_SETUP_DEST="$SANDBOX/cfg6b"
-if bash "$FIXREPO/adapters/opencode/scripts/install.sh" --check >"$SANDBOX/last-out.txt" 2>&1; then
+if bash "$FIXREPO/scripts/install.sh" --check >"$SANDBOX/last-out.txt" 2>&1; then
   fail "T6b: missing SKILL.md passed validation"
 else
   grep -qi "SKILL.md" "$SANDBOX/last-out.txt" && pass "T6b: missing SKILL.md rejected" || fail "T6b: unclear rejection"
@@ -292,9 +292,9 @@ fi
 mkdir -p "$FIXREPO/fakehome" "$FIXREPO/bin"
 printf '#!/bin/sh\necho v0.0.0-test\n' > "$FIXREPO/bin/node" && chmod +x "$FIXREPO/bin/node"
 OPCODE_DIR="$(dirname "$(command -v opencode)")"
-cp -R "$REPO_DIR"/core/skills/debugging/SKILL.md "$FIXREPO/core/skills/debugging/SKILL.md" 2>/dev/null || cp "$REPO_DIR/core/skills/testing/SKILL.md" "$FIXREPO/core/skills/debugging/SKILL.md"
+cp -R "$REPO_DIR"/skills/debugging/SKILL.md "$FIXREPO/skills/debugging/SKILL.md" 2>/dev/null || cp "$REPO_DIR/skills/testing/SKILL.md" "$FIXREPO/skills/debugging/SKILL.md"
 export OPENCODE_SETUP_DEST="$SANDBOX/cfg6c"
-if HOME="$FIXREPO/fakehome" PATH="$FIXREPO/bin:$OPCODE_DIR:/usr/bin:/bin" bash "$FIXREPO/adapters/opencode/scripts/install.sh" --check >"$SANDBOX/last-out.txt" 2>&1; then
+if HOME="$FIXREPO/fakehome" PATH="$FIXREPO/bin:$OPCODE_DIR:/usr/bin:/bin" bash "$FIXREPO/scripts/install.sh" --check >"$SANDBOX/last-out.txt" 2>&1; then
   fail "T6c: wrong-version node passed validation"
 else
   grep -qi "No suitable Node" "$SANDBOX/last-out.txt" && pass "T6c: wrong-version node rejected" || fail "T6c: unclear rejection"
@@ -315,7 +315,7 @@ fi
 cmp -s "$SANDBOX/good/opencode.jsonc" "$SANDBOX/cfg/opencode.jsonc" && pass "T7a: later stages untouched after abort" || fail "T7a: config changed despite abort"
 rm "$SANDBOX/cfg/skills/performance"
 run_isolated --apply || fail "T7a: recovery apply failed"
-diff -qr --exclude='*.bak-*' --exclude='*.backup' --exclude='*.pre-gitnexus-*' --exclude='notes.txt' "$REPO_DIR/core/skills/performance" "$SANDBOX/cfg/skills/performance" >/dev/null 2>&1 && pass "T7a: recovery converged" || fail "T7a: recovery diverged"
+diff -qr --exclude='*.bak-*' --exclude='*.backup' --exclude='*.pre-gitnexus-*' --exclude='notes.txt' "$REPO_DIR/skills/performance" "$SANDBOX/cfg/skills/performance" >/dev/null 2>&1 && pass "T7a: recovery converged" || fail "T7a: recovery diverged"
 # T7b: simulated post-crash partial state converges on re-run.
 rm -rf "$SANDBOX/cfg/skills/testing"
 printf '{}\n' > "$SANDBOX/cfg/opencode.jsonc"

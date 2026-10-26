@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# OpenCode adapter installer (macOS / Linux).
+# OpenCode setup installer (macOS / Linux).
 #
 # Deploys repository content to live OpenCode configuration:
-#   core/instructions/AGENTS.md  -> ~/.config/opencode/AGENTS.md
-#   core/skills/*                -> ~/.config/opencode/skills/*
-#   adapters/opencode/config/opencode.jsonc (template, placeholders rendered)
+#   instructions/AGENTS.md  -> ~/.config/opencode/AGENTS.md
+#   skills/*                -> ~/.config/opencode/skills/*
+#   config/opencode.jsonc (template, placeholders rendered)
 #                                -> ~/.config/opencode/opencode.jsonc
 #
 # Safety contract (mirrored by install.ps1):
@@ -54,11 +54,11 @@ for arg in "$@"; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# adapters/opencode/scripts -> repository root is three levels up.
-REPO_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# scripts -> repository root is one level up.
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Verify the resolved root before using it (marker files, not machine paths).
-for marker in "core/instructions/AGENTS.md" "core/skills" "adapters/opencode/config/opencode.jsonc"; do
+for marker in "instructions/AGENTS.md" "skills" "config/opencode.jsonc"; do
   if [ ! -e "$REPO_DIR/$marker" ]; then
     echo "Error: resolved repository root is invalid (missing $marker): $REPO_DIR" >&2
     exit 1
@@ -99,9 +99,9 @@ else
   OPENCODE_CONFIG_DIR="$LIVE_DEFAULT_DIR"
 fi
 OPENCODE_SKILLS_DIR="$OPENCODE_CONFIG_DIR/skills"
-SOURCE_SKILLS_DIR="$REPO_DIR/core/skills"
-SOURCE_AGENTS="$REPO_DIR/core/instructions/AGENTS.md"
-SOURCE_TEMPLATE="$REPO_DIR/adapters/opencode/config/opencode.jsonc"
+SOURCE_SKILLS_DIR="$REPO_DIR/skills"
+SOURCE_AGENTS="$REPO_DIR/instructions/AGENTS.md"
+SOURCE_TEMPLATE="$REPO_DIR/config/opencode.jsonc"
 TARGET_AGENTS="$OPENCODE_CONFIG_DIR/AGENTS.md"
 TARGET_CONFIG="$OPENCODE_CONFIG_DIR/opencode.jsonc"
 

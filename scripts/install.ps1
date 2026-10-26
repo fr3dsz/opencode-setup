@@ -1,9 +1,9 @@
-# OpenCode adapter installer (Windows PowerShell).
+# OpenCode setup installer (Windows PowerShell).
 #
 # Deploys repository content to live OpenCode configuration:
-#   core/instructions/AGENTS.md  -> $HOME/.config/opencode/AGENTS.md
-#   core/skills/*                -> $HOME/.config/opencode/skills/*
-#   adapters/opencode/config/opencode.jsonc (template, placeholders rendered)
+#   instructions/AGENTS.md  -> $HOME/.config/opencode/AGENTS.md
+#   skills/*                -> $HOME/.config/opencode/skills/*
+#   config/opencode.jsonc (template, placeholders rendered)
 #                                -> $HOME/.config/opencode/opencode.jsonc
 #
 # Safety contract (mirrors install.sh):
@@ -51,11 +51,11 @@ if ($Check.IsPresent) { $Mode = "check" }
 if ($Apply.IsPresent) { $Mode = "apply" }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-# adapters/opencode/scripts -> repository root is three levels up.
-$RepoDir = (Resolve-Path (Join-Path $ScriptDir "../../..")).Path
+# scripts -> repository root is one level up.
+$RepoDir = (Resolve-Path (Join-Path $ScriptDir "..")).Path
 
 # Verify the resolved root before using it (marker files, not machine paths).
-foreach ($Marker in @("core/instructions/AGENTS.md", "core/skills", "adapters/opencode/config/opencode.jsonc")) {
+foreach ($Marker in @("instructions/AGENTS.md", "skills", "config/opencode.jsonc")) {
     if (-not (Test-Path (Join-Path $RepoDir $Marker))) {
         Fail "Resolved repository root is invalid (missing $Marker): $RepoDir"
     }
@@ -90,9 +90,9 @@ if ($null -ne $OverrideRaw) {
     $OpenCodeConfigDir = $LiveDefaultDir
 }
 $OpenCodeSkillsDir = Join-Path $OpenCodeConfigDir "skills"
-$SourceSkillsDir = Join-Path $RepoDir "core/skills"
-$SourceAgents = Join-Path $RepoDir "core/instructions/AGENTS.md"
-$SourceTemplate = Join-Path $RepoDir "adapters/opencode/config/opencode.jsonc"
+$SourceSkillsDir = Join-Path $RepoDir "skills"
+$SourceAgents = Join-Path $RepoDir "instructions/AGENTS.md"
+$SourceTemplate = Join-Path $RepoDir "config/opencode.jsonc"
 $TargetAgents = Join-Path $OpenCodeConfigDir "AGENTS.md"
 $TargetConfig = Join-Path $OpenCodeConfigDir "opencode.jsonc"
 
